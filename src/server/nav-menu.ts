@@ -63,32 +63,43 @@ export function rank<T extends { name: string; count: number }>(rows: T[]): T[] 
  * The images fall back to null for an empty catalogue; the header keeps its
  * shipped stand-in for that case rather than rendering a hole in the panel.
  */
+const EMPTY_NAV_MENU: NavMenu = { images: { collections: null, categories: null }, collections: [], categories: [] };
+
 export const getNavMenu = unstable_cache(
   async (): Promise<NavMenu> => {
-    const [products, collections, categories] = await Promise.all([
-      prisma.product.findMany({
-        where: { status: "ACTIVE", images: { not: "[]" } },
-        orderBy: [{ isBestSeller: "desc" }, { isFeatured: "desc" }, { createdAt: "desc" }],
-        take: 6,
-        select: { images: true },
-      }),
-      prisma.collection.findMany({
-        where: { products: { some: { status: "ACTIVE" } } },
-        select: {
-          name: true,
-          slug: true,
-          _count: { select: { products: { where: { status: "ACTIVE" } } } },
-        },
-      }),
-      prisma.category.findMany({
-        where: { products: { some: { status: "ACTIVE" } } },
-        select: {
-          name: true,
-          slug: true,
-          _count: { select: { products: { where: { status: "ACTIVE" } } } },
-        },
-      }),
-    ]);
+    let products: { images: string }[], collections: { name: string; slug: string; _count: { products: number } }[], categories: { name: string; slug: string; _count: { products: number } }[];
+    try {
+      [products, collections, categories] = await Promise.all([
+        prisma.product.findMany({
+          where: { status: "ACTIVE", images: { not: "[]" } },
+          orderBy: [{ isBestSeller: "desc" }, { isFeatured: "desc" }, { createdAt: "desc" }],
+          take: 6,
+          select: { images: true },
+        }),
+        prisma.collection.findMany({
+          where: { products: { some: { status: "ACTIVE" } } },
+          select: {
+            name: true,
+            slug: true,
+            _count: { select: { products: { where: { status: "ACTIVE" } } } },
+          },
+        }),
+        prisma.category.findMany({
+          where: { products: { some: { status: "ACTIVE" } } },
+          select: {
+            name: true,
+            slug: true,
+            _count: { select: { products: { where: { status: "ACTIVE" } } } },
+          },
+        }),
+      ]);
+    } catch {
+      // A transient DB blip here would otherwise crash the root layout — every
+      // single page includes the header nav menu, so this can't be allowed to
+      // throw. An empty menu (no dropdown links, generic panel imagery) is a
+      // degraded header, not a broken site.
+      return EMPTY_NAV_MENU;
+    }
 
     const photos = products
       .map((p) => parseJsonArray(p.images)[0])

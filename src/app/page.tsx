@@ -349,11 +349,18 @@ export default async function HomePage() {
     sections.map(async (section) => {
       const settings = parseSettings(section.settings);
       const design = normalizeDesignSettings(settings.design);
-      return {
-        key: section.sectionKey,
-        node: await renderSection(section, dict),
-        style: wrapperStyle(design),
-      };
+      let node: React.ReactNode = null;
+      try {
+        node = await renderSection(section, dict);
+      } catch (err) {
+        // One section's query failing (a transient DB blip, bad settings JSON,
+        // etc.) must not take the rest of the homepage down with it via
+        // Promise.all — every other section already tolerates coming back
+        // empty (see renderSection's docs above), so a thrown section is
+        // treated the same way: skipped, not fatal.
+        console.error(`[homepage] section "${section.sectionKey}" failed to render:`, err);
+      }
+      return { key: section.sectionKey, node, style: wrapperStyle(design) };
     })
   );
 

@@ -10,21 +10,50 @@ import { isSectionLive } from "@/lib/homepage-visibility";
  * before the Homepage Builder existed. This is the actual safety net (not just
  * the seed script) since existing installations won't necessarily re-seed.
  */
+/** In-memory rows built straight from SECTION_DEFINITIONS — used when the
+ *  database can't be reached at all, so a transient connection blip degrades
+ *  to the shipped default homepage instead of crashing every page render. */
+function fallbackSections() {
+  const now = new Date();
+  return SECTION_DEFINITIONS.map((def, i) => ({
+    id: `fallback-${def.key}`,
+    sectionKey: def.key,
+    title: def.label,
+    settings: JSON.stringify(def.defaultSettings),
+    displayOrder: i,
+    enabled: true,
+    status: "PUBLISHED",
+    publishAt: null,
+    unpublishAt: null,
+    isCustom: false,
+    createdAt: now,
+    updatedAt: now,
+  }));
+}
+
 export async function getAllHomepageSections() {
-  const existing = await prisma.homepageSection.findMany({ orderBy: { displayOrder: "asc" } });
+  let existing;
+  try {
+    existing = await prisma.homepageSection.findMany({ orderBy: { displayOrder: "asc" } });
+  } catch {
+    return fallbackSections();
+  }
   if (existing.length > 0) return existing;
 
-  await prisma.homepageSection.createMany({
-    data: SECTION_DEFINITIONS.map((def, i) => ({
-      sectionKey: def.key,
-      title: def.label,
-      settings: JSON.stringify(def.defaultSettings),
-      displayOrder: i,
-      enabled: true,
-    })),
-  });
-
-  return prisma.homepageSection.findMany({ orderBy: { displayOrder: "asc" } });
+  try {
+    await prisma.homepageSection.createMany({
+      data: SECTION_DEFINITIONS.map((def, i) => ({
+        sectionKey: def.key,
+        title: def.label,
+        settings: JSON.stringify(def.defaultSettings),
+        displayOrder: i,
+        enabled: true,
+      })),
+    });
+    return await prisma.homepageSection.findMany({ orderBy: { displayOrder: "asc" } });
+  } catch {
+    return fallbackSections();
+  }
 }
 
 /** Same as above, but only the sections actually visible right now — enabled,
