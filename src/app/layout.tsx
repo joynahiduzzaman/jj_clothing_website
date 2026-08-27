@@ -1,0 +1,170 @@
+import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import NavigationProgress from "@/components/NavigationProgress";
+import { Fraunces, Inter } from "next/font/google";
+import "./globals.css";
+import { brand } from "@/config/brand";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import BackToTopButton from "@/components/BackToTopButton";
+import CartDrawer from "@/components/CartDrawer";
+import CompareBar from "@/components/CompareBar";
+import MessengerChat from "@/components/MessengerChat";
+import ReferralCapture from "@/components/ReferralCapture";
+import StorefrontChrome from "@/components/StorefrontChrome";
+import { getBusinessInfo } from "@/server/content";
+import { getNavMenu } from "@/server/nav-menu";
+import { safeJsonLd } from "@/lib/utils";
+import type { BusinessInfo } from "@/lib/site-content";
+import Analytics from "@/components/Analytics";
+import { Toaster } from "react-hot-toast";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { getDictionary } from "@/lib/i18n/dictionaries";
+import { SITE_URL } from "@/lib/site-url";
+
+const siteUrl = SITE_URL;
+
+// Fraunces: a soft-serif with real optical sizing and an editorial, slightly
+// idiosyncratic italic — a common choice among modern DTC fashion brands, and
+// distinct from the more "beauty editorial" feel Playfair Display had here
+// before. Variable name stays --font-serif so no other file needs to change.
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-serif",
+  display: "swap",
+});
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#F7F4EF",
+};
+
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  // The site answers on its Vercel deployment host as well as the custom domain,
+  // so without an explicit canonical both can be indexed and the ranking signals
+  // for a page split across two URLs. "./" is resolved by Next against
+  // metadataBase *and the current pathname*, giving every route its own correct
+  // canonical rather than pointing the whole site at the homepage.
+  alternates: { canonical: "./" },
+  // No Google Search Console verification token yet — the previous one
+  // belonged to the original project's domain and would be meaningless (and
+  // misleading) here. Add a real one once this brand has its own domain.
+  title: {
+    default: `${brand.name} | ${brand.tagline}`,
+    template: `%s | ${brand.name}`,
+  },
+  description: brand.description,
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    title: `${brand.name} | ${brand.tagline}`,
+    description: brand.description,
+    url: siteUrl,
+    siteName: brand.name,
+    images: [{ url: brand.logo.full, width: 1254, height: 1254 }],
+    locale: "en_BD",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${brand.name} | ${brand.tagline}`,
+    description: brand.description,
+    images: [brand.logo.full],
+  },
+};
+
+// Organization/LocalBusiness structured data — real business info, used by search
+// engines for knowledge-panel details (address, phone, hours, socials) rather than
+// left for Google to guess at. Built from the admin-editable Business Info so the
+// phone number Google shows can never drift from the one on the site itself.
+function buildOrganizationJsonLd(business: BusinessInfo) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: brand.name,
+    url: siteUrl,
+    logo: `${siteUrl}${brand.logo.full}`,
+    image: `${siteUrl}${brand.logo.full}`,
+    description: brand.description,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: business.addressFull,
+      addressLocality: "Dhaka",
+      addressCountry: "BD",
+    },
+    telephone: `+${business.phone.replace(/\D/g, "")}`,
+    email: business.email,
+    openingHours: "Mo-Su 00:00-24:00",
+    sameAs: [business.facebookUrl, business.instagramUrl].filter(Boolean),
+  };
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = getLocale();
+  const dict = getDictionary(locale);
+  const [business, nav] = await Promise.all([getBusinessInfo(), getNavMenu()]);
+  const organizationJsonLd = buildOrganizationJsonLd(business);
+
+  return (
+    <html lang={locale} className={`${fraunces.variable} ${inter.variable}`}>
+      <body>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(organizationJsonLd) }} />
+        <Analytics />
+        {/* Suspense: NavigationProgress reads useSearchParams, which opts its
+            subtree into client rendering — without this boundary that would
+            deopt every static page on the site. */}
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
+        <ReferralCapture />
+        <Toaster position="top-center" toastOptions={{ style: { fontSize: "14px" } }} />
+        {/* Shop-only chrome — see StorefrontChrome for why the admin panel and
+            print routes render without it. */}
+        <StorefrontChrome>
+          <Header
+            locale={locale}
+            dict={dict}
+            menuImages={nav.images}
+            collectionLinks={nav.collections}
+            categoryLinks={nav.categories}
+          />
+        </StorefrontChrome>
+        {/* A full-viewport floor, not 60vh: while a long page streams in, the
+            browser paints whatever has parsed so far. At 60vh the footer landed
+            around y=759 — inside the fold — was painted there, then shoved down
+            as the rest of <main> arrived, costing ~0.166 CLS on the home page.
+            Reserving a viewport keeps the footer below the fold until layout
+            settles. Long pages are unaffected (they already exceed it); short
+            ones simply get their footer pinned to the bottom instead of
+            floating mid-screen. */}
+        <main className="min-h-screen">{children}</main>
+        <StorefrontChrome>
+          <Footer locale={locale} dict={dict} />
+          <WhatsAppButton />
+          <BackToTopButton />
+          <CartDrawer />
+          <CompareBar />
+          <MessengerChat />
+        </StorefrontChrome>
+      </body>
+    </html>
+  );
+}

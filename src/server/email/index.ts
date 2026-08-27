@@ -1,0 +1,117 @@
+import { getResend, emailFrom, isEmailConfigured } from "./client";
+import * as templates from "./templates";
+import { brand } from "@/config/brand";
+
+export interface SendResult {
+  sent: boolean;
+  id?: string;
+  error?: unknown;
+}
+
+/**
+ * Core send function, and the only place that talks to the mail provider.
+ *
+ * Email is never load-bearing for the request that triggers it: a customer who
+ * completed checkout must not see an error because the mail API had a bad
+ * minute. Every failure path here returns { sent: false } and logs — it never
+ * throws — so callers can fire-and-forget. When no API key is present the
+ * message is logged instead, keeping local development working without an
+ * account.
+ */
+async function send(to: string, subject: string, html: string, replyTo?: string): Promise<SendResult> {
+  const resend = getResend();
+  if (!resend || !isEmailConfigured()) {
+    console.log(`[email:not-configured] Would send "${subject}" to ${to}. Set RESEND_API_KEY to send for real.`);
+    // Carries a reason rather than a bare false. Callers record this outcome on
+    // the order timeline, and "unknown error" there reads as a provider fault
+    // when the truth is simply that no mail account is configured.
+    return { sent: false, error: new Error("Email is not configured on this deployment (RESEND_API_KEY is unset)") };
+  }
+
+  try {
+    // The SDK reports API-level problems in `error` rather than by throwing, so
+    // both that and a genuine exception have to be handled.
+    const { data, error } = await resend.emails.send({
+      from: emailFrom(),
+      to,
+      subject,
+      html,
+      ...(replyTo ? { replyTo } : {}),
+    });
+
+    if (error) {
+      console.error(`[email] Resend rejected "${subject}" to ${to}:`, error.name, error.message);
+      return { sent: false, error };
+    }
+    return { sent: true, id: data?.id };
+  } catch (err) {
+    console.error(`[email] Send threw for "${subject}" to ${to}:`, err);
+    return { sent: false, error: err };
+  }
+}
+
+export { isEmailConfigured };
+
+export async function sendWelcomeEmail(to: string, name: string) {
+  return send(to, `Welcome to ${brand.name}`, templates.welcomeEmail(name));
+}
+
+export async function sendVerificationEmail(to: string, name: string, verifyUrl: string) {
+  return send(to, `Verify your email — ${brand.name}`, templates.verificationEmail(name, verifyUrl));
+}
+
+export async function sendPasswordResetEmail(to: string, name: string, resetUrl: string) {
+  return send(to, `Reset your password — ${brand.name}`, templates.passwordResetEmail(name, resetUrl));
+}
+
+export async function sendOrderConfirmationEmail(
+  to: string,
+  params: Parameters<typeof templates.orderConfirmationEmail>[0]
+) {
+  return send(to, `Order Confirmed — ${params.orderNumber}`, templates.orderConfirmationEmail(params));
+}
+
+/**
+ * Where store-side order alerts go.
+ *
+ * Defaults to the address the store already sends from, so this needs no setup
+ * to work; ORDER_NOTIFICATION_EMAIL overrides it if the team ever wants these
+ * somewhere other than the sending inbox.
+ */
+export const STORE_ORDER_INBOX = "orders@jjclothing.example";
+
+export function storeOrderInbox(): string {
+  const configured = process.env.ORDER_NOTIFICATION_EMAIL?.trim();
+  return configured && configured.includes("@") ? configured : STORE_ORDER_INBOX;
+}
+
+/** Store-side alert for a new order. Separate subject and recipient from the
+ *  customer's confirmation, so the two never collide in a shared mailbox. */
+export async function sendNewOrderAdminEmail(params: Parameters<typeof templates.newOrderAdminEmail>[0]) {
+  return send(
+    storeOrderInbox(),
+    `New order ${params.orderNumber} — ${params.customerName}`,
+    templates.newOrderAdminEmail(params)
+  );
+}
+
+export async function sendOrderStatusEmail(to: string, params: Parameters<typeof templates.orderStatusEmail>[0]) {
+  return send(to, `Order ${params.orderNumber} update`, templates.orderStatusEmail(params));
+}
+
+export async function sendNewsletterWelcomeEmail(to: string) {
+  return send(to, "You're on the List", templates.newsletterWelcomeEmail());
+}
+
+export async function sendAbandonedCartEmail(to: string, name: string, items: { name: string }[], resumeUrl: string) {
+  return send(to, "You left something in your bag", templates.abandonedCartEmail(name, items, resumeUrl));
+}
+
+export async function sendContactFormEmail(params: { name: string; email: string; subject: string; message: string }) {
+  const supportInbox = process.env.NEXT_PUBLIC_SUPPORT_EMAIL;
+  if (!supportInbox) {
+    console.log("[email:not-configured] No support inbox configured — contact form message logged only:", params);
+    return { sent: false };
+  }
+  return send(supportInbox, `Contact form: ${params.subject}`, templates.contactFormEmail(params), params.email);
+}

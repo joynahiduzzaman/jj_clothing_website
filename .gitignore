@@ -1,0 +1,88 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+.nyc_output
+
+# Playwright — local browser-QA artifacts and downloaded browser binaries,
+# never source
+/test-results/
+/playwright-report/
+/playwright/.cache/
+tests/e2e/screenshots/
+
+# Env files — every variant except the checked-in .env.example template
+.env
+.env.*
+!.env.example
+
+*.db
+*.db-journal
+dev.db
+prisma/dev.db
+
+# Claude Code — personal/machine-local settings, never shared. This file has
+# previously contained another local project's absolute file paths and a
+# different machine's username; treat it as inherently personal, not just
+# empty-by-convention.
+.claude/settings.local.json
+
+# OS files
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Database snapshots taken before migrations. These are full copies of the
+# database with real customer data, and the .bak suffix means the *.db rule
+# above does not cover them.
+backups/
+*.bak
+*.sqlite
+*.sqlite3
+*.dump
+.DS_Store
+
+# Admin-uploaded product images — user-generated content, not source. The folder
+# structure is preserved via public/uploads/products/.gitkeep.
+public/uploads/*
+!public/uploads/products
+public/uploads/products/*
+!public/uploads/products/.gitkeep
+
+# Ad-hoc verification scripts kept out of the repo.
+.verify-*.mjs
+.prod-*.mjs
+.audit-*.mjs
+.test-*.mjs
+.mkimg.mjs
+.imgs/
+
+# Scratch credentials used while driving the app in a browser during testing.
+# These held a real admin password and a signed session cookie, and neither was
+# covered by any rule above — a `git add -A` would have committed both.
+.tpw
+.session.json
+
+# TypeScript incremental build cache — a build artifact, not source.
+tsconfig.tsbuildinfo
+
+# Scratch files from local testing
+.devlog.txt
+.e2e-*.mjs
+.shot-*

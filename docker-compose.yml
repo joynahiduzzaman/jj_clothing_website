@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://jjclothing:jjclothing@db:5432/jjclothing"
+      JWT_SECRET: "change-this-to-a-long-random-string"
+      JWT_REFRESH_SECRET: "change-this-to-a-different-long-random-string"
+      CRON_SECRET: "change-this-to-a-long-random-string"
+      NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
+      NEXT_PUBLIC_SITE_NAME: "JJ Clothing"
+      RESEND_API_KEY: ""
+      EMAIL_FROM: ""
+      AFFILIATE_COMMISSION_PERCENT: "10"
+    depends_on:
+      - db
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: jjclothing
+      POSTGRES_USER: jjclothing
+      POSTGRES_PASSWORD: jjclothing
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:

@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/server/db";
+import { getCurrentUser } from "@/server/auth";
+import { toSlug, uniqueSlug } from "@/server/taxonomy";
+import { z } from "zod";
+import { revalidateCatalogue } from "@/server/catalogue-cache";
+
+async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user || !["ADMIN", "MANAGER"].includes(user.role)) return null;
+  return user;
+}
+
+const schema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(60),
+  slug: z.string().trim().max(80).optional(),
+  logo: z.string().optional(),
+  banner: z.string().optional(),
+  story: z.string().max(600).optional(),
+});
+
+export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+  const collections = await prisma.collection.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { products: true } } },
+  });
+  return NextResponse.json({ collections });
+}
+
+export async function POST(req: NextRequest) {
+  const admin = await requireAdmin();
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+
+  const slug = await uniqueSlug("collection", toSlug(parsed.data.slug || parsed.data.name));
+  const collection = await prisma.collection.create({
+    data: {
+      name: parsed.data.name,
+      slug,
+      logo: parsed.data.logo || null,
+      banner: parsed.data.banner || null,
+      story: parsed.data.story || null,
+    },
+  });
+
+  // The homepage collection grid and the shop filters both read this list.
+  revalidateCatalogue();
+  return NextResponse.json({ collection }, { status: 201 });
+}
