@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/server/db";
+import { checkRateLimit, getClientIp } from "@/server/rate-limit";
 
+// Public, unauthenticated, and answers "is this exact code valid?" for
+// whatever string is passed — without a rate limit, this endpoint alone lets
+// anyone brute-force through unpublished/internal coupon codes at whatever
+// speed a script can send requests. 20 tries/5 min is generous for a genuine
+// shopper mistyping a code, tight enough to blunt real enumeration.
 export async function GET(req: NextRequest) {
+  const rl = checkRateLimit(`coupon-validate:${getClientIp(req)}`, 20, 5 * 60 * 1000);
+  if (!rl.allowed) {
+    return NextResponse.json({ valid: false, message: "Too many attempts. Please try again in a few minutes." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(req.url);
   const code = searchParams.get("code")?.toUpperCase();
   const subtotal = Number(searchParams.get("subtotal") || 0);

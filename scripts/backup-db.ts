@@ -2,11 +2,11 @@
  * Full read-only export of every table to a timestamped JSON file.
  *
  * This exists because a schema change once went ahead without a restore point
- * and the database was wiped. Neon's own point-in-time restore is the better
- * recovery tool and should still be the first resort — but it has a retention
- * window, needs console access, and restores everything or nothing. A local dump
- * costs seconds, survives indefinitely, and can be inspected or partially
- * replayed.
+ * and the database was wiped. A managed MySQL provider's own point-in-time
+ * restore (if your host offers one) is the better recovery tool and should
+ * still be the first resort — but it typically has a retention window, needs
+ * console access, and restores everything or nothing. A local dump costs
+ * seconds, survives indefinitely, and can be inspected or partially replayed.
  *
  *   npm run db:backup
  *
@@ -19,11 +19,16 @@ import { writeFileSync, mkdirSync } from "node:fs";
 /**
  * Order matters on any future restore — parents before children — so it is
  * preserved here rather than relying on Object.keys ordering later.
+ *
+ * Kept in sync by hand with prisma/schema.prisma's model list — this had
+ * drifted twice before this pass: it still said "brand" after that model was
+ * renamed to "collection", and it never included "productVariant" at all, so
+ * a "full" backup silently omitted every variant's stock/SKU/color/size.
  */
 const MODELS = [
-  "user", "brand", "category", "product", "coupon", "siteSetting", "pageContent",
-  "homepageSection", "homepageSectionRevision", "address", "cartSession", "commission",
-  "stockAdjustment", "review", "wishlistItem", "order", "orderItem", "payment",
+  "user", "collection", "category", "product", "productVariant", "coupon", "siteSetting",
+  "pageContent", "homepageSection", "homepageSectionRevision", "address", "cartSession",
+  "commission", "stockAdjustment", "review", "wishlistItem", "order", "orderItem", "payment",
   "shipment", "orderEvent", "notification", "supportTicket", "ticketReply",
   "newsletterSubscriber",
 ] as const;
@@ -52,7 +57,7 @@ async function main() {
 
     mkdirSync("backups", { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    const file = `backups/neon-backup.${stamp}.json`;
+    const file = `backups/db-backup.${stamp}.json`;
     writeFileSync(file, JSON.stringify(dump));
 
     const total = Object.values(counts).reduce((a, b) => a + b, 0);

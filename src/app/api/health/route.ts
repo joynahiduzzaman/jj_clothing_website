@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
  *
  * A page returning 200 only proves Next is serving; it says nothing about
  * whether the database behind it is reachable. This actually round-trips a
- * query, so an uptime monitor detects a Neon outage or an exhausted connection
- * pool rather than reporting green while every checkout fails.
+ * query, so an uptime monitor detects a database outage or an exhausted
+ * connection pool rather than reporting green while every checkout fails.
  *
  * Deliberately public — a monitor cannot authenticate — so it reveals only
  * whether dependencies respond, never versions, connection strings, counts, or

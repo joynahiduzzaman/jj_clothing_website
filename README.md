@@ -1,7 +1,7 @@
 # JJ Clothing
 
 **Dress Your Story** — a premium fashion ecommerce storefront for the Bangladesh market. Next.js 14
-(App Router) + TypeScript + Prisma + PostgreSQL + Tailwind CSS.
+(App Router) + TypeScript + Prisma + MySQL + Tailwind CSS.
 
 This is a real, working full-stack application: every page is connected to a live database, not a
 mockup. Product variants (color × size), cart, checkout, order lifecycle, inventory, and a full
@@ -12,9 +12,12 @@ admin panel are all functional end to end.
 ## 1. Tech stack
 
 - **Framework**: Next.js 14 (App Router), TypeScript
-- **Database**: PostgreSQL only — the schema targets `provider = "postgresql"` in
-  `prisma/schema.prisma`. A different engine (MySQL/SQLite) is not supported without changing the
-  schema yourself and re-testing every query.
+- **Database**: MySQL 8 only — the schema targets `provider = "mysql"` in
+  `prisma/schema.prisma`. A different engine (PostgreSQL/SQLite) is not supported without changing
+  the schema yourself and re-testing every query — in particular, every long-text/JSON field is
+  explicitly annotated `@db.Text`/`@db.VarChar(n)` for MySQL's default `VARCHAR(191)` string length
+  (unbounded `TEXT` on PostgreSQL), and search filters rely on MySQL's default case-insensitive
+  collation rather than Prisma's `mode: "insensitive"` (PostgreSQL/MongoDB only).
 - **ORM**: Prisma
 - **Styling**: Tailwind CSS
 - **State**: Zustand (cart, compare — persisted to `localStorage`)
@@ -31,7 +34,7 @@ admin panel are all functional end to end.
 
 ## 2. Quick start (local development)
 
-**Requirements:** Node.js 20+, npm, a local PostgreSQL instance (or a free hosted one — see §8).
+**Requirements:** Node.js 20+, npm, a local MySQL 8 instance (or a free hosted one — see §8).
 
 ```bash
 # 1. Install dependencies
@@ -42,8 +45,15 @@ cp .env.example .env
 ```
 
 Edit `.env`:
-- `DATABASE_URL` — point at your Postgres instance, e.g.
-  `postgresql://postgres:yourpassword@localhost:5432/jj_clothing_db`
+- `DATABASE_URL` — point at your MySQL instance, e.g.
+  `mysql://jjclothing_app:yourpassword@localhost:3306/jj_clothing_db`. Use a dedicated,
+  non-root MySQL user for this — never point the app at your root account. Create one:
+  ```sql
+  CREATE DATABASE jj_clothing_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  CREATE USER 'jjclothing_app'@'localhost' IDENTIFIED BY 'yourpassword';
+  GRANT ALL PRIVILEGES ON jj_clothing_db.* TO 'jjclothing_app'@'localhost';
+  FLUSH PRIVILEGES;
+  ```
 - `JWT_SECRET` / `JWT_REFRESH_SECRET` / `CRON_SECRET` — generate fresh random values, e.g.
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` (run three times)
 - Everything else can stay blank for local development — the app degrades gracefully (emails log
@@ -235,10 +245,15 @@ on a cold server, hit the routes once with `curl` first, or just re-run.
 
 ## 8. Database
 
-PostgreSQL only. Options for local development:
-- Install PostgreSQL locally and create a database.
-- Or use a free hosted instance for zero local setup — [Neon](https://neon.tech) and
-  [Supabase](https://supabase.com) both have a free tier well-sized for a project like this.
+MySQL 8 only. Options for local development:
+- Install MySQL 8 locally and create a dedicated database + non-root user (see §2's exact SQL).
+- Or use a free hosted MySQL-compatible instance for zero local setup — e.g.
+  [Railway](https://railway.app) or [Aiven](https://aiven.io)'s free tiers.
+
+Use `utf8mb4` with a case-insensitive collation (`utf8mb4_0900_ai_ci` on MySQL 8, or
+`utf8mb4_general_ci`) — the app relies on MySQL's default collation being case-insensitive for
+search (see `src/app/api/products/__tests__/search-case.test.ts`), rather than Prisma's
+`mode: "insensitive"` option, which only exists on PostgreSQL/MongoDB.
 
 ```bash
 npm run db:generate         # regenerate the Prisma client after a schema change
@@ -306,7 +321,7 @@ periodically, or wire up Dependabot).
 docker compose up --build
 ```
 
-`docker-compose.yml` bundles a PostgreSQL container matching the schema — no changes needed to try
+`docker-compose.yml` bundles a MySQL 8 container matching the schema — no changes needed to try
 it locally. It ships with placeholder secrets (`change-this-to-a-long-random-string`); replace them
 before using this setup for anything beyond a local trial.
 
@@ -392,13 +407,13 @@ This project has not been deployed anywhere yet — the steps below are for when
 A straightforward, free-tier-friendly stack:
 - **Hosting**: [Vercel](https://vercel.com) (free tier) — first-class Next.js support, zero config
   for this project's build.
-- **Database**: [Neon](https://neon.tech) or [Supabase](https://supabase.com) (free tier Postgres).
+- **Database**: [Railway](https://railway.app) or [Aiven](https://aiven.io) (free tier MySQL).
 - **Email**: [Resend](https://resend.com) (free tier, 3,000/month).
 - **Images**: [Cloudinary](https://cloudinary.com) (free tier, ~25 GB).
 
 General steps when you're ready:
 1. Push this repository to GitHub (see the repo this README ships in).
-2. Create a free Postgres database (Neon/Supabase), copy its connection string into `DATABASE_URL`.
+2. Create a free MySQL database (Railway/Aiven), copy its connection string into `DATABASE_URL`.
 3. Import the project into Vercel, add every variable from `.env.example` (with real values) under
    **Project → Settings → Environment Variables** for Production (and Preview if you want preview
    deployments to work too).

@@ -47,7 +47,7 @@ export default async function ShopPage({ searchParams }: Props) {
   if (category) where.category = { slug: category };
   if (collection) where.collection = { slug: collection };
   if (gender) where.gender = gender;
-  if (q) where.name = { contains: q, mode: "insensitive" };
+  if (q) where.name = { contains: q };
   if (minPrice || maxPrice) {
     where.price = {};
     if (minPrice) where.price.gte = Number(minPrice);
@@ -56,8 +56,8 @@ export default async function ShopPage({ searchParams }: Props) {
   if (color || size) {
     where.variants = {
       some: {
-        ...(color ? { color: { equals: color, mode: "insensitive" } } : {}),
-        ...(size ? { size: { equals: size, mode: "insensitive" } } : {}),
+        ...(color ? { color: { equals: color } } : {}),
+        ...(size ? { size: { equals: size } } : {}),
       },
     };
   }

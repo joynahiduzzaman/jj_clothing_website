@@ -32,6 +32,13 @@ const csp = [
 
 const nextConfig = {
   images: {
+    // Next's default is 60 seconds — far too short for product photography,
+    // which effectively never changes at a given URL: uploaded filenames
+    // already embed a timestamp + random suffix (see the admin upload route),
+    // and Cloudinary/placehold.co URLs are likewise immutable per-URL. A long
+    // TTL here means the optimizer serves the same re-encoded asset from cache
+    // instead of redoing the work on every expiry, with no staleness risk.
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },
       // Product images uploaded through the admin panel are served from

@@ -16,7 +16,8 @@ import { z } from "zod";
 import { emailSchema } from "@/lib/email-identity";
 
 const schema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  // max(191): matches User.name's actual database column limit (VARCHAR(191)).
+  name: z.string().min(2, "Name must be at least 2 characters").max(191),
   // Normalised, not just validated: a raw address here would let
   // "Foo@Gmail.com" be stored as a second account alongside "foo@gmail.com",
   // since the duplicate check below is an exact-match findUnique.

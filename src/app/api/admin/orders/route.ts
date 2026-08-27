@@ -29,7 +29,7 @@ const schema = z
       label: z.string().optional(),
     }),
     guestEmail: emailSchema.optional().or(z.literal("")),
-    giftNote: z.string().optional(),
+    giftNote: z.string().max(1000).optional(),
     couponCode: z.string().optional(),
     manualDiscount: z.number().min(0).optional(),
     shippingFeeOverride: z.number().min(0).nullable().optional(),

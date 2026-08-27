@@ -20,7 +20,7 @@ export default async function InventoryPage({ searchParams }: { searchParams: { 
   const filter = searchParams.filter || "all";
 
   const products = await prisma.product.findMany({
-    where: q ? { name: { contains: q, mode: "insensitive" } } : {},
+    where: q ? { name: { contains: q } } : {},
     include: { variants: { orderBy: { position: "asc" } } },
     orderBy: { name: "asc" },
   });

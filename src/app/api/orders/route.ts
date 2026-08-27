@@ -32,7 +32,7 @@ const orderSchema = z.object({
     label: z.string().optional(),
   }),
   guestEmail: emailSchema.optional(),
-  giftNote: z.string().optional(),
+  giftNote: z.string().max(1000).optional(),
 });
 
 // POST /api/orders — creates the order, applies any coupon, calculates shipping,

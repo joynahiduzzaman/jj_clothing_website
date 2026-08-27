@@ -355,6 +355,7 @@ async function main() {
         gender: p.gender,
         modelInfo: p.category === "accessories" ? null : `Model is 5'10" (178cm) wearing size M`,
         images: JSON.stringify([img(p.name), img(`${p.name} 2`)]),
+        images360: "[]",
         price: p.price,
         discountPercent: p.discount || 0,
         weightGrams: 300,

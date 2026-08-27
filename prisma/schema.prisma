@@ -5,12 +5,19 @@ generator client {
 }
 
 datasource db {
-  // Local development for this clothing-brand copy uses a local PostgreSQL
+  // Local development for this clothing-brand copy uses a local MySQL 8
   // instance (a fresh, dedicated database — never the original project's
-  // database). No pooler sits in front of a local instance, so there's no
-  // separate directUrl to manage (that split only matters for a pooled
-  // managed Postgres deployment, e.g. Neon in production).
-  provider = "postgresql"
+  // database).
+  //
+  // IMPORTANT — fields holding JSON blobs or long free text are explicitly
+  // marked `@db.Text` below. Prisma's `String` scalar defaults to
+  // `VARCHAR(191)` on MySQL (unbounded `TEXT` on PostgreSQL) — without the
+  // explicit annotation, product descriptions, image-URL arrays, and other
+  // longer content would silently truncate at 191 characters instead of
+  // erroring, which is far worse than a loud failure. Short, bounded fields
+  // (slugs, codes, names, single reason lines) are left on the VARCHAR(191)
+  // default deliberately, not by oversight.
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -83,12 +90,18 @@ model CartSession {
   email     String?
   name      String?
   phone     String?
-  itemsJson String // JSON snapshot of cart items at the time checkout was started
+  itemsJson String   @db.Text // JSON snapshot of cart items at the time checkout was started
   total     Float
   recovered Boolean   @default(false)
   emailedAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  // Two real query patterns against this table, previously unindexed:
+  // the abandoned-cart cron's stale-session scan (recovered/emailedAt/createdAt),
+  // and marking sessions recovered by email when an order completes.
+  @@index([recovered, emailedAt, createdAt])
+  @@index([email, recovered])
 }
 
 model Address {
@@ -115,9 +128,9 @@ model Collection {
   id        String    @id @default(cuid())
   name      String
   slug      String    @unique
-  logo      String?
-  banner    String?
-  story     String?
+  logo      String?   @db.Text
+  banner    String?   @db.Text
+  story     String?   @db.Text
   products  Product[]
   createdAt DateTime  @default(now())
 }
@@ -126,12 +139,12 @@ model Category {
   id        String    @id @default(cuid())
   name      String
   slug      String    @unique
-  image     String?
+  image     String?   @db.Text
   // One size chart per garment type (e.g. all T-Shirts share a chart) — JSON
   // string, shape: { rows: [{ label, chest, length, shoulder, ... }] }. Kept
   // DB-agnostic like the other JSON-string fields in this schema. Null/absent
   // means the category has no size chart configured yet (e.g. Accessories).
-  sizeGuide String?
+  sizeGuide String?   @db.Text
   products  Product[]
   createdAt DateTime  @default(now())
 }
@@ -153,7 +166,9 @@ model StockAdjustment {
   change        Int // positive = stock added, negative = stock removed
   previousStock Int
   newStock      Int
-  reason        String // e.g. "Manual adjustment", "Order SGB260713-1234 placed", "Order SGB260713-1234 cancelled"
+  // @db.VarChar(255): admin-entered manual reasons are validated up to 200
+  // chars, just past VARCHAR(191)'s default limit.
+  reason        String   @db.VarChar(255) // e.g. "Manual adjustment", "Order JJ260713-1234 placed", "Order JJ260713-1234 cancelled"
   adjustedBy    String? // admin user's name, or null for system-generated (order placed/cancelled)
   createdAt     DateTime        @default(now())
 
@@ -173,7 +188,7 @@ model StockAdjustment {
 // when a key has never been set.
 model SiteSetting {
   key       String   @id
-  value     String
+  value     String   @db.Text
   updatedAt DateTime @updatedAt
 }
 
@@ -187,7 +202,13 @@ model SiteSetting {
 // backfilled into this table automatically.
 model PageContent {
   pageKey   String   @id
-  content   String   @default("{}")
+  // No @default("{}") here: MySQL (via Prisma) doesn't allow a DEFAULT on a
+  // TEXT column at all, regardless of version — and this needs @db.Text since
+  // real page content can far exceed VARCHAR(191). Not a gap in practice: the
+  // only write path (the admin content route's upsert) always supplies
+  // `content` explicitly on create, and a missing row falls back to the
+  // code-level default at read time anyway (see the model comment above).
+  content   String   @db.Text
   updatedAt DateTime @updatedAt
 }
 
@@ -200,7 +221,10 @@ model HomepageSection {
   id           String                    @id @default(cuid())
   sectionKey   String                    @unique // "hero" | "categories" | "bestSellers" | etc — see homepage-sections.ts
   title        String
-  settings     String                    @default("{}")
+  // No @default("{}") — MySQL/Prisma doesn't allow a DEFAULT on a TEXT column
+  // (needed here since real section settings can exceed VARCHAR(191)), and
+  // every creation site already supplies `settings` explicitly.
+  settings     String                    @db.Text
   displayOrder Int                       @default(0)
   enabled      Boolean                   @default(true)
   // status/publishAt/unpublishAt add draft + scheduled-publish support on top of the
@@ -232,7 +256,7 @@ model HomepageSectionRevision {
   section     HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId   String
   title       String
-  settings    String
+  settings    String          @db.Text
   status      String
   publishAt   DateTime?
   unpublishAt DateTime?
@@ -247,21 +271,28 @@ model Product {
   // Bilingual product name (Bangla) — the bilingual EN/BN storefront is kept
   // for the clothing brand, so this stays; `koreanName` (K-beauty-specific)
   // is dropped.
-  banglaName       String?
+  // @db.VarChar(255): validated up to 200 chars in the admin product routes —
+  // just past VARCHAR(191)'s default limit.
+  banglaName       String?           @db.VarChar(255)
   slug             String            @unique
   collection       Collection?       @relation(fields: [collectionId], references: [id])
   collectionId     String?
   category         Category          @relation(fields: [categoryId], references: [id])
   categoryId       String
-  description      String
-  material         String?
+  description      String            @db.Text
+  material         String?           @db.VarChar(255) // validated up to 200 chars
   fit              String? // e.g. "Relaxed Fit", "Slim Fit", "Oversized"
-  careInstructions String?
+  careInstructions String?           @db.Text
   gender           String            @default("UNISEX") // MEN | WOMEN | UNISEX
   // e.g. "Model is 5'10\" wearing size M" — shown near the size selector.
-  modelInfo        String?
-  images           String            @default("[]") // JSON string array of image URLs
-  images360        String            @default("[]") // JSON string array of rotation frames for the 360° viewer (optional)
+  // @db.VarChar(255): validated up to 200 chars.
+  modelInfo        String?           @db.VarChar(255)
+  // No @default("[]") on either — MySQL/Prisma doesn't allow a DEFAULT on a
+  // TEXT column (needed here since a full image-URL array easily exceeds
+  // VARCHAR(191)), and every product-creation path (admin create route, seed
+  // script) already supplies both explicitly.
+  images           String            @db.Text // JSON string array of image URLs
+  images360        String            @db.Text // JSON string array of rotation frames for the 360° viewer (optional)
   metaTitle        String?
   metaDescription  String?
   // ACTIVE | DRAFT — controls storefront visibility. "Out of Stock" is intentionally
@@ -335,9 +366,9 @@ model Review {
   userId       String
   rating       Int
   title        String?
-  comment      String
+  comment      String   @db.Text
   verified     Boolean  @default(false)
-  adminReply   String?
+  adminReply   String?  @db.Text
   helpfulVotes Int      @default(0)
   createdAt    DateTime @default(now())
 
@@ -399,7 +430,7 @@ model Order {
   shippingArea         String
   shippingStreet       String
   insideDhaka          Boolean      @default(true)
-  giftNote             String?
+  giftNote             String?      @db.Text // was unbounded in zod validation too — see the fix in the checkout API routes
   // Staff ownership for order handling — distinct relation name from `user`
   // (the customer who placed the order) since both point at User.
   assignedStaff        User?        @relation("AssignedOrders", fields: [assignedStaffId], references: [id], onDelete: SetNull)
@@ -454,7 +485,7 @@ model Payment {
   verifiedById       String?
   verifiedAt         DateTime?
   paidAt             DateTime  @default(now())
-  notes              String?
+  notes              String?   @db.Text // validated up to 1000 chars — see the payment reconciliation API routes
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -475,7 +506,7 @@ model Shipment {
   trackingNumber    String?
   deliveryStatus    String    @default("PENDING") // PENDING | PICKED_UP | IN_TRANSIT | OUT_FOR_DELIVERY | DELIVERED | FAILED | RETURNED
   estimatedDelivery DateTime?
-  shippingNotes     String?
+  shippingNotes     String?   @db.Text // validated up to 1000 chars — see the shipment API route
   assignedBy        User?     @relation("ShipmentAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
   assignedById      String?
   createdAt         DateTime  @default(now())
@@ -495,7 +526,9 @@ model OrderEvent {
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId   String
   type      String // STATUS_CHANGE | PAYMENT_CHANGE | NOTE | ASSIGNMENT | TRACKING
-  message   String
+  // @db.Text: staff-written internal notes are validated up to 2000 chars
+  // (see the order notes API route) — well past VARCHAR(191)'s default limit.
+  message   String   @db.Text
   createdBy String // staff member's name, or "System" for automated changes
   createdAt DateTime @default(now())
 
@@ -517,7 +550,7 @@ model OrderItem {
   name      String
   color     String?
   size      String?
-  image     String?
+  image     String?         @db.Text
   price     Float
   quantity  Int
 }
@@ -554,7 +587,7 @@ model TicketReply {
   id          String        @id @default(cuid())
   ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   ticketId    String
-  message     String
+  message     String        @db.Text // validated up to 2000 chars — see the support-tickets API routes
   isFromStaff Boolean       @default(false)
   authorName  String
   createdAt   DateTime      @default(now())

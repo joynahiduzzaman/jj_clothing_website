@@ -77,13 +77,13 @@ export function orderWhere(f: ParsedOrderFilters): Record<string, any> {
 
   if (f.q) {
     where.OR = [
-      { orderNumber: { contains: f.q, mode: "insensitive" } },
-      { shippingName: { contains: f.q, mode: "insensitive" } },
-      { shippingPhone: { contains: f.q, mode: "insensitive" } },
-      { guestEmail: { contains: f.q, mode: "insensitive" } },
-      { guestName: { contains: f.q, mode: "insensitive" } },
-      { user: { email: { contains: f.q, mode: "insensitive" } } },
-      { user: { name: { contains: f.q, mode: "insensitive" } } },
+      { orderNumber: { contains: f.q } },
+      { shippingName: { contains: f.q } },
+      { shippingPhone: { contains: f.q } },
+      { guestEmail: { contains: f.q } },
+      { guestName: { contains: f.q } },
+      { user: { email: { contains: f.q } } },
+      { user: { name: { contains: f.q } } },
     ];
   }
 

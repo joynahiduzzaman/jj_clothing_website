@@ -21,7 +21,10 @@ const variantSchema = z.object({
 });
 
 const productSchema = z.object({
-  name: z.string().min(2),
+  // max(191): matches the database column's actual limit (VARCHAR(191)) —
+  // without this, a longer name would fail or truncate at the DB layer
+  // instead of with a clear validation message here.
+  name: z.string().min(2).max(191),
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens").optional(),
   banglaName: z.string().max(200).nullable().optional(),
   collectionId: z.string().nullable().optional(),

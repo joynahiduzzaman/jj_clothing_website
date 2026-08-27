@@ -856,3 +856,130 @@ Zone → Change visibility → Make private.**
 2. Real logo artwork, payment gateway credentials, and actual deployment are all still pending, as
    documented in §17.6 — none of that changed in this round; this round was strictly "get the
    existing project onto GitHub safely," not deployment.
+
+---
+
+## 18. Round 5 (2026-08-27) — PostgreSQL → MySQL migration, full QA, security & performance audit
+
+### 18.1 MySQL migration
+
+Database engine switched from local PostgreSQL to **local MySQL 8** — full schema, migrations,
+seed, Docker, env config, and all DB-related application code, not just the Prisma `provider` line.
+
+- **`prisma/schema.prisma`**: provider changed to `mysql`. Every field holding JSON or free text
+  longer than MySQL's default `VARCHAR(191)` got an explicit `@db.Text` (`CartSession.itemsJson`,
+  `Collection.logo/banner/story`, `Category.image/sizeGuide`, `SiteSetting.value`,
+  `PageContent.content`, `HomepageSection(Revision).settings`, `Product.description
+  /careInstructions/images/images360`, `Review.comment/adminReply`, `OrderEvent.message`,
+  `OrderItem.image`, `Payment.notes`, `Shipment.shippingNotes`, `Order.giftNote`,
+  `TicketReply.message`); a few 200-character-validated fields got `@db.VarChar(255)` instead
+  (`StockAdjustment.reason`, `Product.banglaName/material/modelInfo`). Every one of these was
+  cross-checked against the real zod `.max()` in its API route rather than guessed.
+- Removed `@default(...)` from the handful of `@db.Text` fields that had one — MySQL/Prisma
+  disallows a default on a `TEXT` column entirely — after confirming every actual write path
+  (seed, admin create routes) already supplies the value explicitly.
+- Removed `mode: "insensitive"` everywhere (Postgres/MongoDB-only Prisma option, invalid on
+  MySQL) — `src/app/api/products/route.ts`, `src/app/shop/page.tsx`,
+  `src/server/order-filters.ts`, `src/app/admin/coupons/page.tsx`,
+  `src/app/admin/inventory/page.tsx`, `src/app/admin/products/page.tsx`,
+  `src/app/api/admin/customers/route.ts`. MySQL's default collation is already case-insensitive, so
+  no behavioral replacement was needed — verified live (see §18.2).
+- Old Postgres-specific `prisma/migrations/` history deleted; a fresh
+  `20260827081508_init_mysql_clothing_brand` migration generated and applied against a real local
+  MySQL instance.
+- **Tightened validation gaps found while cross-checking column types**: `giftNote` was completely
+  unbounded (`z.string().optional()`) against what is now a `@db.Text` column but should still have
+  a sane ceiling — capped at 1000 chars; `Product.name`/`User.name` had no `.max()` at all against
+  `VARCHAR(191)` columns — capped at 191.
+- `docker-compose.yml` rewritten back to MySQL 8; `.env.example` updated to the `mysql://` URL
+  format with a dedicated non-root user documented; `DIRECT_URL` (Postgres/Neon-specific) removed;
+  `README.md` quick-start, Database, Docker, and Deployment sections updated for MySQL
+  (Railway/Aiven instead of Neon/Supabase).
+- **Dedicated database user created**, not root: `jjclothing_app`, scoped to `jj_clothing_db` for
+  normal operations, plus `CREATE/DROP/ALTER/REFERENCES/INDEX` globally (deliberately excluding
+  data-read/write privileges on anything else) so Prisma Migrate's shadow database works. Two other,
+  unrelated databases on the same local MySQL instance (`electroshop`, `inventory_db`) were never
+  touched. No real/root credentials were committed anywhere — `.env` stays gitignored as before.
+- **Live-verified against the real MySQL database, not just a successful migration**: created a
+  product with a 277-character description via the actual API and confirmed
+  `SELECT LENGTH(description)` returned the full length, zero truncation; ran `?q=jacket` vs.
+  `?q=JACKET` and confirmed identical results; ran a full order lifecycle (create → confirm stock
+  decremented via direct SQL → cancel → confirm stock restored via direct SQL) using a fresh test
+  customer.
+
+### 18.2 Website QA
+
+Re-verified customer and admin flows end-to-end against the new MySQL database after a clean
+`.next` cache clear and dev-server restart (homepage, shop/search, product detail, cart, checkout,
+login, admin login, admin dashboard all returned 200 on a cold start). Full order lifecycle,
+case-insensitive search, and long-text storage were exercised live as described above. Coupon
+validation, admin dashboard/inventory pages, and product/variant admin CRUD were functionally
+verified in earlier rounds of this project and were not structurally changed by this migration;
+mobile/tablet/desktop responsiveness and some form/empty-state edge cases were not explicitly
+re-exercised in this specific pass (they were covered in Round 1/2's dedicated responsiveness QA).
+
+### 18.3 Security audit
+
+Reviewed authentication/authorization, IDOR, injection, XSS/CSRF, secret exposure, payment/order
+manipulation, and input validation. Two real, previously-unaddressed gaps were fixed:
+
+- **`src/app/api/coupons/validate/route.ts`** — this endpoint is public and unauthenticated and
+  answers "is this exact code valid?" for any string, with no rate limit — allowing unbounded
+  brute-force enumeration of coupon codes. Added `checkRateLimit` (20 requests / 5 minutes per IP),
+  returning 429 past the limit.
+- **`src/app/api/admin/upload/route.ts`** — uploads were validated only by the client-reported
+  `file.type`, which reflects nothing but the browser's guess from the filename extension; a
+  renamed `malicious.html` saved as `photo.jpg` would pass straight through. Added
+  `matchesDeclaredType()`, checking the real file signature (magic bytes) for JPEG/PNG/GIF/WEBP and
+  rejecting any upload whose actual content doesn't match its declared type.
+
+Reviewed and found already solid, no changes needed: JWT auth + httpOnly cookies, IDOR checks
+(`resource.userId === currentUser.id` pattern used consistently for account/order access), SQL
+injection (Prisma parameterized queries throughout, no raw string interpolation), CSRF (same-site
+cookies + non-GET mutations require auth), order/price manipulation (server always recomputes
+price/discount from the database, never trusts client-supplied amounts), admin role gating
+(`ADMIN`/`MANAGER`/`STAFF` checks on every admin route), and no secrets present in committed source
+(`.env` gitignored, confirmed via repeated grep sweeps in Round 4 and re-checked this round).
+
+### 18.4 Performance audit
+
+- **`next.config.mjs`** — `images.minimumCacheTTL` was left at Next's 60-second default, far too
+  short for product photography that effectively never changes at a given URL (uploaded filenames
+  already embed a timestamp + random suffix). Set to 30 days.
+- Reviewed for N+1 queries, bundle size, and slow routes: admin bulk-action list endpoints use
+  bounded, paginated queries (no unbounded N+1 loops found); the `Coupon` table is small enough that
+  its lookup pattern is not a performance concern; product listing/search already uses indexed
+  `where` clauses. No other safe, high-confidence performance issues were found worth changing
+  without a production traffic profile to validate against.
+
+### 18.5 Final verification
+
+- `npm run lint` — clean.
+- `npx tsc --noEmit` — clean.
+- `npm run test` (Vitest) — 293/293 passing, including a rewritten
+  `src/app/api/products/__tests__/search-case.test.ts` that now asserts no `mode: "insensitive"`
+  remains anywhere in `src/`.
+- `npm run build` — succeeds.
+- `npm run test:e2e` (Playwright) — 6/7 passing; the one failure is the same environmental
+  dev-mode compilation flakiness documented in §17.4/Round 3, confirmed again by an isolated
+  re-run (passed immediately alone).
+
+### 18.6 Anything still needing manual attention
+
+- The dedicated `jjclothing_app` MySQL user holds broad `CREATE/DROP/ALTER` privileges **globally**
+  (all databases on the instance), not just on `jj_clothing_db` — a deliberate tradeoff to satisfy
+  Prisma Migrate's shadow-database requirement for local dev, but worth tightening (or moving to a
+  hosted MySQL provider with its own shadow-DB handling) before this ever becomes a shared or
+  production instance.
+- This local MySQL instance also hosts two unrelated databases (`electroshop`, `inventory_db`) —
+  never touched, but worth knowing they're there if the instance is ever exposed or backed up.
+- Test artifacts remain in the database from live verification and can be deleted via the admin
+  panel if desired: customer `mysqltest@example.com`, a cancelled order (`JJ260827-9127`), and a
+  product named "MySQL Migration Test Hoodie".
+- Mobile/tablet/desktop responsiveness and a few form/empty-state edge cases were not
+  re-exercised in this specific MySQL-focused pass (last explicitly verified in Round 1/2).
+- MySQL root password: you provided a working one via `127.0.0.1:3306` after an earlier one didn't
+  work — this session never touched or reset the root password directly (blocked by Windows UAC on
+  an unelevated session); whatever reset you performed yourself is the one now in effect. (Root
+  credentials aren't used by the app anyway — it connects only as the scoped `jjclothing_app` user
+  via `.env`, which is gitignored.)

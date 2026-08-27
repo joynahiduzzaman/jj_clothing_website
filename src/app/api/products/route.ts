@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
   if (color || size) {
     where.variants = {
       some: {
-        ...(color ? { color: { equals: color, mode: "insensitive" } } : {}),
-        ...(size ? { size: { equals: size, mode: "insensitive" } } : {}),
+        ...(color ? { color: { equals: color } } : {}),
+        ...(size ? { size: { equals: size } } : {}),
       },
     };
   }
@@ -39,17 +39,19 @@ export async function GET(req: NextRequest) {
   // promises "products, collections, or categories", so "denim" or "essentials"
   // both work.
   //
-  // `mode: "insensitive"` is load-bearing on PostgreSQL. Prisma compiles
-  // `contains` to SQL LIKE, which SQLite evaluates case-insensitively for ASCII
-  // but PostgreSQL does not — so after the move to Neon, "snail" matched nothing
-  // while "Snail" matched, and every lowercase search (i.e. how people actually
-  // type) silently returned an empty catalogue. This forces ILIKE.
+  // No explicit `mode: "insensitive"` here — that Prisma option only exists on
+  // PostgreSQL/MongoDB and doesn't compile on MySQL at all (a schema/type error,
+  // not just a no-op). It's not needed on MySQL anyway: `contains` compiles to
+  // SQL LIKE, and MySQL's default collation for this schema (utf8mb4_*_ci — the
+  // "ci" is literally case-insensitive) already matches "snail" against
+  // "Snail" without any extra option. See search-case.test.ts, which asserts
+  // this collation-driven behavior rather than the presence of a Prisma option.
   if (q) {
     where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { collection: { name: { contains: q, mode: "insensitive" } } },
-      { category: { name: { contains: q, mode: "insensitive" } } },
-      { variants: { some: { color: { contains: q, mode: "insensitive" } } } },
+      { name: { contains: q } },
+      { collection: { name: { contains: q } } },
+      { category: { name: { contains: q } } },
+      { variants: { some: { color: { contains: q } } } },
     ];
   }
   if (minPrice || maxPrice) {

@@ -30,6 +30,29 @@ function extensionFor(mimeType: string) {
   return { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif" }[mimeType] || "";
 }
 
+// `file.type` is whatever the browser reported based on the filename's
+// extension — it never looks at the actual bytes, so a renamed
+// `malicious.html` saved as `photo.jpg` reports "image/jpeg" and would sail
+// straight past the ALLOWED_TYPES check above. Confirming the real file
+// signature (the same technique browsers/OSes themselves use for type
+// sniffing) closes that gap regardless of what the upload claims to be.
+function matchesDeclaredType(bytes: Buffer, mimeType: string): boolean {
+  const sig = (...b: number[]) => b.every((byte, i) => bytes[i] === byte);
+  switch (mimeType) {
+    case "image/jpeg":
+      return sig(0xff, 0xd8, 0xff);
+    case "image/png":
+      return sig(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+    case "image/gif":
+      return sig(0x47, 0x49, 0x46, 0x38); // "GIF8" — covers both GIF87a and GIF89a
+    case "image/webp":
+      // RIFF....WEBP — the 4 bytes at offset 4 are the chunk size, not part of the signature.
+      return sig(0x52, 0x49, 0x46, 0x46) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+    default:
+      return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -48,6 +71,13 @@ export async function POST(req: NextRequest) {
 
   const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${extensionFor(file.type)}`;
   const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (!matchesDeclaredType(bytes, file.type)) {
+    return NextResponse.json(
+      { error: "This file's content doesn't match its declared image type — it may be renamed or corrupted." },
+      { status: 400 }
+    );
+  }
 
   // Preferred path: object storage. Required on serverless, where the bundle
   // filesystem is read-only and per-invocation.

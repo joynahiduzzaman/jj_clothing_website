@@ -24,7 +24,7 @@ const variantSchema = z.object({
 // into Prisma's `data`, since that would let a caller set arbitrary columns (including
 // relation IDs) beyond what the admin UI actually exposes.
 const updateSchema = z.object({
-  name: z.string().min(2).optional(),
+  name: z.string().min(2).max(191).optional(),
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens").optional(),
   banglaName: z.string().max(200).nullable().optional(),
   description: z.string().min(5).optional(),

@@ -4,7 +4,7 @@ import { getCurrentUser, hashPassword, verifyPassword } from "@/server/auth";
 import { z } from "zod";
 
 const schema = z.object({
-  name: z.string().min(2).optional(),
+  name: z.string().min(2).max(191).optional(),
   phone: z.string().optional(),
   currentPassword: z.string().optional(),
   newPassword: z.string().min(6).optional(),
