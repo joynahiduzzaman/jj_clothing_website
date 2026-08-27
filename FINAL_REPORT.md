@@ -774,3 +774,85 @@ that are configuration/content steps for you, not code defects:
 - No production hosting, domain, or real database exists yet — everything here has been verified
   against `localhost` and the local Postgres instance only, per your standing instruction never to
   touch the original project or any production system.
+
+---
+
+## 18. GitHub Preparation
+
+The project is now a real Git repository, pushed to the GitHub repo you named.
+
+- **Repository**: https://github.com/joynahiduzzaman/jj_clothing_website
+- **Branch**: `main`
+- **Commit**: `a370647` — "Initial JJ Clothing ecommerce release" (445 files, first commit)
+
+### Something to check: the repository is currently public
+
+Your instructions said not to make the repository public. **I never touched its visibility setting
+— pushing code doesn't change that — and it was already `public` the first time I checked it after
+pushing**, so either it was created that way or something outside this session set it. I can't
+change repo visibility myself (no `gh` CLI is installed on this machine, and I'm not requesting a
+token to do it via the API). If you want it private: **GitHub → repo → Settings → General → Danger
+Zone → Change visibility → Make private.**
+
+### What was fixed for GitHub-readiness
+
+- **`docker-compose.yml` was still the original Seoul Glow Bangladesh config** — MySQL, the old
+  brand's database name, wrong entirely for this project's Postgres schema. Rewritten to match
+  (Postgres 16, generic naming, the actual env vars this app reads).
+- **Real local secrets had leaked into two places that were about to be committed**:
+  `FINAL_REPORT.md` contained the actual local Postgres password and the actual seeded admin
+  password in plain text (redacted to placeholders); `tests/e2e/smoke.spec.ts` and
+  `shot-admin.mjs` hardcoded that same real admin password (changed to read from
+  `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`, falling back to `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`
+  — i.e. whatever your own `.env` has — never a literal value in source).
+- **`.claude/settings.local.json` contained another local project's absolute file paths and a
+  different machine's username** (leftover from however this project's folder was originally
+  copied) — added to `.gitignore`; never staged, never pushed.
+- **`.gitignore` rebuilt more thoroughly**: every `.env*` variant (explicitly keeping
+  `.env.example`), OS files (`Thumbs.db`, `Desktop.ini`), editor files (`.vscode/`, `.idea/`, swap
+  files), logs, `coverage/`, on top of what was already there (Playwright artifacts, database
+  files, uploaded product images, TypeScript build cache).
+- **`.env.example` corrected**: added the missing `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (present
+  in `.env`, absent from the template); clarified that `DIRECT_URL` isn't actually wired into
+  `prisma/schema.prisma` yet (would need `directUrl = env("DIRECT_URL")` added to the datasource
+  block if you deploy to a connection-pooled provider like Neon later) rather than silently
+  implying it already does something.
+- **A lint false-positive fixed properly**: `ProductImage.tsx`'s `eslint-disable-next-line`
+  comment was itself broken — it sat several comment-lines above the actual JSX line it was meant
+  to cover, so it silenced nothing. Restructured so the directive is the line immediately before
+  the code.
+- **`README.md` was entirely the original Seoul Glow Bangladesh documentation** (wrong brand, wrong
+  database — described SQLite/MySQL switching instructions for a project that's Postgres-only,
+  wrong demo accounts, wrong feature list). Rewritten from scratch to accurately describe this
+  project: tech stack, quick start, variants, testing (including the new Playwright suite),
+  database, payments, security, Docker, project structure, and free-tier-friendly deployment
+  guidance (Vercel + Neon/Supabase + Resend + Cloudinary) — documented for when you're ready, not
+  acted on.
+
+### Verified before every commit
+
+- `npm run lint` — 0 errors, 2 warnings (both reviewed and confirmed deliberate, not oversights).
+- `npx tsc --noEmit` — clean.
+- `npm run test` (Vitest) — 293/293 passing.
+- `npm run test:e2e` (Playwright) — 6/7 passing per run; the one intermittent failure
+  (`admin can log in`) is the same environmental dev-mode flakiness root-caused in §17.4, confirmed
+  again by re-running it alone immediately after (passed in 8 seconds).
+- `npm run build` — succeeds.
+- **Secret scan**: grepped the entire repo (source, docs, config) for private-key headers, common
+  API-key prefixes (`sk_live_`, `AKIA...`, `ghp_...`, etc.), and every real local credential from
+  this machine's `.env` by literal value — all clean after the two fixes above.
+- **Staged-file review**: confirmed via `git status`/`git diff --cached` that `.env`,
+  `node_modules`, `.next`, `.claude/settings.local.json`, `test-results/`, `playwright-report/`,
+  and `tests/e2e/screenshots/` were never staged — 445 files, 53,296 insertions, zero matches for
+  any secret pattern in the actual staged diff content.
+- **Post-push verification**: fetched the repository's tree via GitHub's API and confirmed the
+  live remote content matches exactly — no `.env`, no `node_modules`, default branch `main`, HEAD
+  commit matches local exactly (`git ls-remote` against the real GitHub server, not just local
+  state).
+
+### Manual steps for you
+
+1. **Decide on repository visibility** (see above) — currently public.
+2. Real logo artwork, payment gateway credentials, and actual deployment are all still pending, as
+   documented in §17.6 — none of that changed in this round; this round was strictly "get the
+   existing project onto GitHub safely," not deployment.
