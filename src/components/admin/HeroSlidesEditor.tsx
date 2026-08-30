@@ -150,7 +150,7 @@ export default function HeroSlidesEditor({
                       with no headline over it. */}
                   <input placeholder="Headline (leave blank for no headline)" value={slide.title} onChange={(e) => updateSlide(slide.id, { title: e.target.value })} className="w-full rounded-lg border border-ink/10 px-4 py-2.5 text-sm" />
                   <p className="-mt-1 text-[11px] leading-relaxed text-ink/50">
-                    Wrap a phrase in asterisks to set it in italic rose — e.g. Your skin, *glowing* the Korean way.
+                    Wrap a phrase in asterisks to set it in italic rose — e.g. Dress your *story*.
                   </p>
                   <textarea placeholder="Supporting line (leave blank for none)" rows={2} value={slide.subtitle} onChange={(e) => updateSlide(slide.id, { subtitle: e.target.value })} className="w-full rounded-lg border border-ink/10 px-4 py-2.5 text-sm" />
                   <div className="grid grid-cols-2 gap-3">

@@ -162,7 +162,7 @@ export const PAGE_DEFS: PageDef[] = [
         ],
       },
       {
-        title: "Why Korea",
+        title: "Why Choose Us",
         fields: [
           { key: "whyEyebrow", label: "Eyebrow", type: "text" },
           { key: "whyTitle", label: "Heading", type: "text" },

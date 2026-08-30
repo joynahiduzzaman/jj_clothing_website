@@ -88,7 +88,7 @@ export default async function AboutPage() {
         </ScrollReveal>
       </section>
 
-      {/* Why Korea */}
+      {/* Why Choose Us */}
       {whyItems.length > 0 && (
         <section className="bg-beige/60 section-py">
           <div className="container-px mx-auto">
