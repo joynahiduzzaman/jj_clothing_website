@@ -194,6 +194,10 @@ export default async function Footer({ locale, dict }: { locale: Locale; dict: D
           ))}
         </div>
       </div>
+
+      <div className="border-t border-cream/10 py-3 container-px mx-auto text-center text-[11px] text-cream/40">
+        © 2026 JOY. All rights reserved.
+      </div>
     </footer>
   );
 }
