@@ -52,16 +52,48 @@ const collections = [
 const SIZES_TOP = ["S", "M", "L", "XL"];
 const SIZES_BOTTOM = ["28", "30", "32", "34"];
 
-// Publicly hosted placeholder imagery used for demo/seed purposes only — a
-// labelled placeholder rather than guessed stock-photo URLs, so nothing here
-// risks resolving to a broken image or an unrelated photo. Replace with real
-// product photography before going live (see the "Images" section of the
-// admin product form).
-// /png forces placehold.co to return an actual PNG — without it, the service
-// defaults to SVG, which Next.js's image optimizer refuses to process (400:
-// "image type is not allowed") unless dangerouslyAllowSVG is set. Every seeded
-// product silently failed to render its image until this was caught via a
-// real Playwright screenshot showing blank thumbnails everywhere.
+// Real (freely-licensed, Unsplash) clothing photography for demo purposes —
+// every URL below was checked with a live HTTP request before being added
+// here, so nothing resolves to a broken image. Swap for real product
+// photography before going live (see the "Images" section of the admin
+// product form). next.config.mjs already allowlists images.unsplash.com.
+const unsplash = (id: string, w = 800) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
+
+const PRODUCT_IMAGES: Record<string, [string, string]> = {
+  "Oversized Cotton T-Shirt": [unsplash("1618354691373-d851c5c3a990"), unsplash("1576566588028-4147f3842f27")],
+  "Ribbed Basic Top": [unsplash("1521572163474-6864f9cf17ab"), unsplash("1489987707025-afc232f7ea0f")],
+  "Graphic Print Tee": [unsplash("1576566588028-4147f3842f27"), unsplash("1618354691373-d851c5c3a990")],
+  "Classic Oxford Shirt": [unsplash("1562157873-818bc0726f68"), unsplash("1489274495757-95c7c837b101")],
+  "Linen Shirt": [unsplash("1489274495757-95c7c837b101"), unsplash("1562157873-818bc0726f68")],
+  "Flannel Check Shirt": [unsplash("1489274495757-95c7c837b101"), unsplash("1562157873-818bc0726f68")],
+  "Premium Polo": [unsplash("1591195853828-11db59a44f6b"), unsplash("1620799140408-edc6dcb6d633")],
+  "Pique Polo Shirt": [unsplash("1620799140408-edc6dcb6d633"), unsplash("1591195853828-11db59a44f6b")],
+  "Relaxed Fit Jeans": [unsplash("1594633312681-425c7b97ccd1"), unsplash("1541099649105-f69ad21f3246")],
+  "Straight Leg Denim": [unsplash("1542272604-787c3835535d"), unsplash("1541840031508-326b77c9a17e")],
+  "Wide Leg Trousers": [unsplash("1523381210434-271e8be1f52b"), unsplash("1517841905240-472988babdf9")],
+  "Tailored Chino Trousers": [unsplash("1517841905240-472988babdf9"), unsplash("1523381210434-271e8be1f52b")],
+  "Minimal Hoodie": [unsplash("1591047139829-d91aecb6caea"), unsplash("1556821840-3a63f95609a7")],
+  "Oversized Sweatshirt": [unsplash("1556821840-3a63f95609a7"), unsplash("1591047139829-d91aecb6caea")],
+  "Utility Jacket": [unsplash("1591343395082-e120087004b4"), unsplash("1544022613-e87ca75a784a")],
+  "Denim Jacket": [unsplash("1544022613-e87ca75a784a"), unsplash("1551028719-00167b16eac5")],
+  "Canvas Tote Bag": [unsplash("1591561954557-26941169b49e"), unsplash("1544441893-675973e31985")],
+  "Knit Beanie": [unsplash("1523293182086-7651a899d37f"), unsplash("1544441893-675973e31985")],
+};
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  "t-shirts": unsplash("1618354691373-d851c5c3a990"),
+  shirts: unsplash("1562157873-818bc0726f68"),
+  polos: unsplash("1591195853828-11db59a44f6b"),
+  "hoodies-sweatshirts": unsplash("1591047139829-d91aecb6caea"),
+  outerwear: unsplash("1591343395082-e120087004b4"),
+  jeans: unsplash("1594633312681-425c7b97ccd1"),
+  trousers: unsplash("1523381210434-271e8be1f52b"),
+  accessories: unsplash("1591561954557-26941169b49e"),
+};
+
+/** Fallback only — every seeded product/category above has an explicit
+ *  real photo; this exists so a future addition here can't silently ship
+ *  with a broken image if someone forgets to add one. */
 const img = (label: string) => `https://placehold.co/800x1000/EBE5DC/1C1B19/png?text=${encodeURIComponent(label)}`;
 
 interface SeedVariant { color: string; size: string; stock: number }
@@ -248,6 +280,83 @@ const products: SeedProduct[] = [
     sizes: ["One Size"],
     trending: true,
   },
+  {
+    name: "Graphic Print Tee",
+    collection: "the-everyday-edit",
+    category: "t-shirts",
+    gender: "UNISEX",
+    material: "100% Cotton",
+    fit: "Regular Fit",
+    careInstructions: "Machine wash cold inside out. Do not iron print.",
+    price: 820,
+    colors: ["Black", "White"],
+    sizes: SIZES_TOP,
+    newArrival: true,
+  },
+  {
+    name: "Flannel Check Shirt",
+    collection: "weekend-layers",
+    category: "shirts",
+    gender: "MEN",
+    material: "100% Brushed Cotton",
+    fit: "Regular Fit",
+    careInstructions: "Machine wash cold. Tumble dry low.",
+    price: 1550,
+    colors: ["Red Check", "Green Check"],
+    sizes: SIZES_TOP,
+  },
+  {
+    name: "Pique Polo Shirt",
+    collection: "summer-essentials",
+    category: "polos",
+    gender: "WOMEN",
+    material: "100% Cotton Pique",
+    fit: "Slim Fit",
+    careInstructions: "Machine wash cold. Do not tumble dry.",
+    price: 1150,
+    discount: 10,
+    colors: ["White", "Navy", "Pink"],
+    sizes: SIZES_TOP,
+  },
+  {
+    name: "Tailored Chino Trousers",
+    collection: "the-everyday-edit",
+    category: "trousers",
+    gender: "MEN",
+    material: "98% Cotton, 2% Elastane",
+    fit: "Tailored Fit",
+    careInstructions: "Machine wash cold. Iron on medium heat.",
+    price: 1850,
+    colors: ["Khaki", "Navy", "Black"],
+    sizes: SIZES_BOTTOM,
+    bestSeller: true,
+  },
+  {
+    name: "Denim Jacket",
+    collection: "weekend-layers",
+    category: "outerwear",
+    gender: "UNISEX",
+    material: "100% Cotton Denim",
+    fit: "Regular Fit",
+    careInstructions: "Machine wash cold, inside out. Line dry.",
+    price: 2650,
+    colors: ["Mid Blue", "Black"],
+    sizes: SIZES_TOP,
+    trending: true,
+  },
+  {
+    name: "Knit Beanie",
+    collection: "summer-essentials",
+    category: "accessories",
+    gender: "UNISEX",
+    material: "100% Acrylic Knit",
+    fit: "One Size",
+    careInstructions: "Hand wash cold. Lay flat to dry.",
+    price: 450,
+    colors: ["Black", "Grey", "Camel"],
+    sizes: ["One Size"],
+    newArrival: true,
+  },
 ];
 
 /**
@@ -314,7 +423,7 @@ async function main() {
   const categoryMap: Record<string, string> = {};
   for (const c of categories) {
     const created = await prisma.category.create({
-      data: { name: c.name, slug: c.slug, image: img(c.name), sizeGuide: c.sizeGuide },
+      data: { name: c.name, slug: c.slug, image: CATEGORY_IMAGES[c.slug] || img(c.name), sizeGuide: c.sizeGuide },
     });
     categoryMap[c.slug] = created.id;
   }
@@ -354,7 +463,7 @@ async function main() {
         careInstructions: p.careInstructions,
         gender: p.gender,
         modelInfo: p.category === "accessories" ? null : `Model is 5'10" (178cm) wearing size M`,
-        images: JSON.stringify([img(p.name), img(`${p.name} 2`)]),
+        images: JSON.stringify(PRODUCT_IMAGES[p.name] || [img(p.name), img(`${p.name} 2`)]),
         images360: "[]",
         price: p.price,
         discountPercent: p.discount || 0,
