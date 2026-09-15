@@ -31,6 +31,17 @@ const csp = [
 ].join("; ");
 
 const nextConfig = {
+  // Required for the cPanel/Passenger deployment (warechhiya.com): Passenger's
+  // "Setup Node.js App" tool needs one self-contained JS entry file it can
+  // launch directly — the default build instead produces a `.next/` directory
+  // meant to be served via `next start`, which assumes the full node_modules
+  // tree and the Next CLI are both present and invoked a specific way, neither
+  // of which Passenger does. Standalone mode traces the minimal dependency set
+  // and emits `.next/standalone/server.js`, a plain Node http server with no
+  // external CLI needed — exactly what Passenger's startup file field wants.
+  // Harmless for the Vercel deployment: Vercel's own build pipeline ignores
+  // this and uses its own output format regardless of what's set here.
+  output: "standalone",
   images: {
     // Next's default is 60 seconds — far too short for product photography,
     // which effectively never changes at a given URL: uploaded filenames

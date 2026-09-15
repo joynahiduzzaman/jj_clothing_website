@@ -1,0 +1,25 @@
+---
+# Runs automatically when you click "Deploy HEAD Commit" in cPanel's Git
+# Version Control tool. Each task line runs as its own shell invocation from
+# the repository root — nothing here relies on a previous task's `cd`
+# persisting, since cPanel doesn't guarantee that it does.
+#
+# /home/shakilch/.env.build is deliberately NOT part of this repo (it's never
+# committed) — it exists only on the server and holds the handful of secrets
+# (DATABASE_URL, in particular) that Next.js's build step needs to reach the
+# database for static generation. Runtime secrets (JWT_SECRET, etc.) don't
+# need to be in it — those are supplied to the running app by cPanel's own
+# Node.js App "Environment Variables" panel instead.
+#
+# The nodevenv path's version segment ("20") must match whatever Node version
+# you actually selected in "Setup Node.js App" — cPanel shows you the exact
+# activation command on that app's detail page after you create it; fix this
+# path if it doesn't match what's shown there.
+deployment:
+  tasks:
+    - source /home/shakilch/nodevenv/warechhiya-app/20/bin/activate && ( [ -f /home/shakilch/.env.build ] && source /home/shakilch/.env.build ; true ) && npm install
+    - source /home/shakilch/nodevenv/warechhiya-app/20/bin/activate && npx prisma generate
+    - source /home/shakilch/nodevenv/warechhiya-app/20/bin/activate && ( [ -f /home/shakilch/.env.build ] && source /home/shakilch/.env.build ; true ) && npm run build
+    - /bin/cp -R public .next/standalone/public
+    - /bin/mkdir -p .next/standalone/.next
+    - /bin/cp -R .next/static .next/standalone/.next/static

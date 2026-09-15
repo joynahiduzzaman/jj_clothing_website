@@ -86,3 +86,6 @@ tsconfig.tsbuildinfo
 .devlog.txt
 .e2e-*.mjs
 .shot-*
+
+.vercel
+.env*
