@@ -78,7 +78,7 @@ export async function sendOrderConfirmationEmail(
  * to work; ORDER_NOTIFICATION_EMAIL overrides it if the team ever wants these
  * somewhere other than the sending inbox.
  */
-export const STORE_ORDER_INBOX = "orders@jjclothing.example";
+export const STORE_ORDER_INBOX = "orders@warechhiya.example";
 
 export function storeOrderInbox(): string {
   const configured = process.env.ORDER_NOTIFICATION_EMAIL?.trim();

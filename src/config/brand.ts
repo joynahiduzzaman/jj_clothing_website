@@ -11,8 +11,8 @@
  */
 
 export const brand = {
-  name: "JJ Clothing",
-  shortName: "JJ",
+  name: "Warechhiya",
+  shortName: "W",
   tagline: "Dress Your Story",
   description:
     "Modern, considered clothing for everyday wear — designed in-house, made to last, shipped across Bangladesh.",
@@ -24,7 +24,7 @@ export const brand = {
   country: "Bangladesh",
 
   contact: {
-    supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "hello@jjclothing.example",
+    supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "hello@warechhiya.example",
     whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "",
   },
 
@@ -34,12 +34,13 @@ export const brand = {
   },
 
   logo: {
-    // The user supplied real artwork (a "JJ" rose-gold/black monogram over a
-    // hanger icon, "CLOTHING · DRESS YOUR STORY") pasted directly into chat —
-    // there is no file path for it in this environment, so it could not be
-    // written to disk here. Until it's saved to these exact paths in `public/`,
-    // BrandLogo.tsx renders a typographic "JJ" monogram instead (same colors,
-    // same circular mark shape, so the swap will be a drop-in visual match).
+    // These PNGs (plus every favicon/PWA icon in public/) are generated, not
+    // hand-drawn — see tests/e2e/generate-icons.mjs and its three *-template.html
+    // files. They render a typographic monogram/wordmark from plain HTML/CSS via
+    // Playwright, so renaming the brand is: edit the "W"/"Warechhiya" text in
+    // those three templates, then rerun `node tests/e2e/generate-icons.mjs`
+    // to regenerate every size at once. Swap in real artwork at these same
+    // paths whenever it's ready — nothing else needs to change.
     mark: "/logo-mark.png",
     full: "/logo.png",
   },

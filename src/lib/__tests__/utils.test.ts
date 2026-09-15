@@ -9,6 +9,7 @@ import {
   isValidBDPhone,
   normalizePhone,
 } from "../utils";
+import { brand } from "@/config/brand";
 
 describe("formatBDT", () => {
   it("formats a whole number as BDT currency", () => {
@@ -63,15 +64,21 @@ describe("parseJsonArray", () => {
 });
 
 describe("generateOrderNumber", () => {
-  it("matches the JJYYMMDD-NNNN pattern", () => {
-    expect(generateOrderNumber()).toMatch(/^JJ\d{6}-\d{4}$/);
+  // Derived from brand.shortName rather than hardcoded, so this doesn't need
+  // updating every time the brand's short name changes (see generateOrderNumber
+  // in src/lib/utils.ts — the prefix is literally `${brand.shortName}`).
+  const prefixLength = brand.shortName.length + 6; // shortName + YYMMDD
+
+  it("matches the <shortName>YYMMDD-NNNN pattern", () => {
+    const pattern = new RegExp(`^${brand.shortName}\\d{6}-\\d{4}$`);
+    expect(generateOrderNumber()).toMatch(pattern);
   });
 
   it("generates unique-looking values across calls (not deterministic)", () => {
     const a = generateOrderNumber();
     const b = generateOrderNumber();
     // Same date prefix is expected; the random suffix should very rarely collide.
-    expect(a.slice(0, 9)).toBe(b.slice(0, 9));
+    expect(a.slice(0, prefixLength)).toBe(b.slice(0, prefixLength));
   });
 });
 

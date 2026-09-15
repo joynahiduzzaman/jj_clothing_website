@@ -571,7 +571,7 @@ export default function SectionSettingsModal({
                 <div className="border-t border-border-soft pt-4 space-y-3">
                   <div>
                     <label className="block text-[11px] text-ink/70 mb-1.5">Instagram handle</label>
-                    <input placeholder="jjclothing" value={draft.settings.handle || ""} onChange={(e) => set("handle", e.target.value)} className="w-full rounded-lg border border-ink/10 px-4 py-2.5 text-sm" />
+                    <input placeholder="warechhiya" value={draft.settings.handle || ""} onChange={(e) => set("handle", e.target.value)} className="w-full rounded-lg border border-ink/10 px-4 py-2.5 text-sm" />
                   </div>
                   {/* No post-count control: this section is a single link to the
                       profile, so there is nothing to count. */}

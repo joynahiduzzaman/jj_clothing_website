@@ -20,7 +20,7 @@ export default function InstagramSection({
   handle?: string;
   backgroundColor?: string;
 }) {
-  const handle = handleOverride || "jjclothing";
+  const handle = handleOverride || "warechhiya";
   const profileUrl = brand.social.instagram || `https://www.instagram.com/${handle}/`;
 
   return (

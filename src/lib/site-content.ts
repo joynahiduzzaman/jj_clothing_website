@@ -94,7 +94,7 @@ export const BUSINESS_FIELDS: FieldGroup[] = [
     fields: [
       { key: "facebookUrl", label: "Facebook page URL", type: "text" },
       { key: "instagramUrl", label: "Instagram profile URL", type: "text" },
-      { key: "instagramHandle", label: "Instagram handle", type: "text", hint: "Without the @ — e.g. jjclothing" },
+      { key: "instagramHandle", label: "Instagram handle", type: "text", hint: "Without the @ — e.g. warechhiya" },
     ],
   },
 ];
@@ -104,7 +104,7 @@ export const BUSINESS_FIELDS: FieldGroup[] = [
 // carrying over any real contact detail from another business.
 export const BUSINESS_DEFAULTS: Record<string, string> = {
   phone: "8801700000000",
-  email: "hello@jjclothing.example",
+  email: "hello@warechhiya.example",
   addressFull: "Dhaka, Bangladesh",
   addressShort: "Dhaka, Bangladesh",
   mapQuery: "Dhaka, Bangladesh",
@@ -113,7 +113,7 @@ export const BUSINESS_DEFAULTS: Record<string, string> = {
   responseTime: "Usually within a few hours",
   facebookUrl: "",
   instagramUrl: "",
-  instagramHandle: "jjclothing",
+  instagramHandle: "warechhiya",
 };
 
 export type BusinessInfo = typeof BUSINESS_DEFAULTS;

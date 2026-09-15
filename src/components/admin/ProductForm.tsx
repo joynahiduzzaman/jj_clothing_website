@@ -798,7 +798,7 @@ export default function ProductForm({
           <input
             id="metaTitle"
             maxLength={70}
-            placeholder="e.g. Oversized Cotton T-Shirt — JJ Clothing"
+            placeholder="e.g. Oversized Cotton T-Shirt — Warechhiya"
             value={form.metaTitle}
             onChange={(e) => setForm({ ...form, metaTitle: e.target.value })}
             className="field"

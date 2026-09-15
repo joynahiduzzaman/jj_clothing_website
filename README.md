@@ -1,4 +1,4 @@
-# JJ Clothing
+# Warechhiya
 
 **Dress Your Story** — a premium fashion ecommerce storefront for the Bangladesh market. Next.js 14
 (App Router) + TypeScript + Prisma + MySQL + Tailwind CSS.
@@ -186,7 +186,7 @@ Email is sent through **[Resend](https://resend.com)** via its official SDK (`sr
 The default sender is Resend's shared `onboarding@resend.dev`, which can only deliver to the email
 address that owns the Resend account — fine for testing, not for real customers. To email real
 customers, verify a domain in **Resend → Domains**, then set
-`EMAIL_FROM="JJ Clothing <orders@yourdomain.com>"`.
+`EMAIL_FROM="Warechhiya <orders@yourdomain.com>"`.
 
 With no `RESEND_API_KEY`, emails are logged to the console instead of sent, so a fresh clone works
 with no mail account at all. Admin diagnostic: `GET`/`POST /api/admin/email-status` (requires an

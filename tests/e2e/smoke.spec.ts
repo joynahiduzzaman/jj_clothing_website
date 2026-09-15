@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Browser-based QA smoke suite for the JJ Clothing storefront/admin.
+ * Browser-based QA smoke suite for the Warechhiya storefront/admin.
  *
  * Runs Chromium only, against the local dev server (see playwright.config.ts —
  * baseURL is always localhost, never a production URL). Uses only local,
@@ -26,7 +26,7 @@ const SCREENSHOT_DIR = "tests/e2e/screenshots";
 test.describe("Storefront — customer flow", () => {
   test("homepage loads", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveTitle(/JJ Clothing/);
+    await expect(page).toHaveTitle(/Warechhiya/);
     await page.screenshot({ path: `${SCREENSHOT_DIR}/01-homepage.png`, fullPage: true });
   });
 
@@ -46,7 +46,12 @@ test.describe("Storefront — customer flow", () => {
 
   test("add to cart and open cart drawer", async ({ page }) => {
     await page.goto("/product/canvas-tote-bag");
-    await page.getByRole("button", { name: /add to bag|add to cart/i }).click();
+    // Scoped to the aria-label on the main product's primary CTA — a plain
+    // role/name match also catches "Add to Bag" buttons on related-product
+    // cards further down the same page (e.g. "You May Also Like"), which
+    // made this locator ambiguous once the demo catalog grew large enough
+    // for those cross-sell sections to actually render.
+    await page.getByLabel("Add to Bag", { exact: true }).click();
     // The drawer opens automatically after adding; give the slide-in animation a moment.
     await expect(page.getByText(/canvas tote bag/i).first()).toBeVisible({ timeout: 5000 });
     await page.screenshot({ path: `${SCREENSHOT_DIR}/04-cart-drawer.png`, fullPage: true });
@@ -54,7 +59,12 @@ test.describe("Storefront — customer flow", () => {
 
   test("checkout page loads with the cart item", async ({ page }) => {
     await page.goto("/product/canvas-tote-bag");
-    await page.getByRole("button", { name: /add to bag|add to cart/i }).click();
+    // Scoped to the aria-label on the main product's primary CTA — a plain
+    // role/name match also catches "Add to Bag" buttons on related-product
+    // cards further down the same page (e.g. "You May Also Like"), which
+    // made this locator ambiguous once the demo catalog grew large enough
+    // for those cross-sell sections to actually render.
+    await page.getByLabel("Add to Bag", { exact: true }).click();
     // Let the add-to-cart state settle before navigating away — starting a
     // hard navigation while the client is mid-update raced and aborted here.
     await expect(page.getByText(/canvas tote bag/i).first()).toBeVisible({ timeout: 5000 });
