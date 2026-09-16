@@ -12,7 +12,7 @@ import { v2 as cloudinary } from "cloudinary";
  * local filesystem, so `npm run dev` keeps working for anyone who has not signed
  * up for Cloudinary — which is why this module never throws at import time.
  */
-export const CLOUDINARY_FOLDER = "seoul-glow-bangladesh/products";
+export const CLOUDINARY_FOLDER = "warechhiya/products";
 
 const REQUIRED_VARS = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"] as const;
 
