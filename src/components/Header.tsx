@@ -60,11 +60,8 @@ export default function Header({
   }, []);
 
   const NAV_LINKS = [
-    { label: dict.nav.newArrivals, href: "/shop?filter=new" },
     { label: dict.nav.men, href: "/shop?gender=MEN" },
     { label: dict.nav.women, href: "/shop?gender=WOMEN" },
-    { label: dict.nav.unisex, href: "/shop?gender=UNISEX" },
-    { label: dict.nav.sale, href: "/shop?filter=flashsale" },
   ];
 
   useEffect(() => {
