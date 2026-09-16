@@ -4,6 +4,7 @@ import { notifyUser } from "./notifications";
 import { sendOrderConfirmationEmail, sendNewOrderAdminEmail } from "./email";
 import { logOrderEvent } from "./order-events";
 import { generateOrderNumber, discountedPrice, parseJsonArray, normalizePhone } from "@/lib/utils";
+import { PAYMENT_METHOD_LABELS, type PaymentMethodValue } from "@/lib/payment";
 
 /**
  * The one place that prices an order, validates stock, and creates the DB rows —
@@ -268,7 +269,7 @@ export async function finalizeOrderEffects(
       discount: order.discount,
       shippingFee: order.shippingFee,
       total: order.total,
-      paymentMethod: order.paymentMethod,
+      paymentMethod: PAYMENT_METHOD_LABELS[order.paymentMethod as PaymentMethodValue] || order.paymentMethod,
     }).catch((err) => ({ sent: false, error: err }));
 
     // Record the outcome on the order itself. The previous `.catch(() => {})`
@@ -320,7 +321,7 @@ export async function finalizeOrderEffects(
       discount: order.discount,
       shippingFee: order.shippingFee,
       total: order.total,
-      paymentMethod: order.paymentMethod,
+      paymentMethod: PAYMENT_METHOD_LABELS[order.paymentMethod as PaymentMethodValue] || order.paymentMethod,
       placedVia: order.source || "Online checkout",
     }).catch((err: unknown) => ({ sent: false, error: err }));
 
